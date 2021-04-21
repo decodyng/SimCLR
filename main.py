@@ -23,6 +23,7 @@ def train(net, data_loader, train_optimizer, mode):
         feature_2, z_j = net(pos_2)
 
         if mode == 'ilr':
+            print("Using ILR loss")
             batch_size = z_i.shape[0]
 
             z_i = F.normalize(z_i, dim=1)
@@ -59,6 +60,7 @@ def train(net, data_loader, train_optimizer, mode):
             criterion = torch.nn.CrossEntropyLoss()
             loss = criterion(logits, labels)
         else:
+            print("Using Repo Loss")
             # [2*B, D]
             out = torch.cat([z_i, z_j], dim=0)
             # [2*B, 2*B]
