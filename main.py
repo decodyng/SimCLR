@@ -170,6 +170,7 @@ if __name__ == '__main__':
     for epoch in range(1, epochs + 1):
         train_loss = train(model, train_loader, optimizer, mode=mode, batch_size=batch_size)
         results['train_loss'].append(train_loss)
+        torch.save(model, f'results/epoch_{epoch}.ckpt')
         test_acc_1, test_acc_5 = test(model, memory_loader, test_loader)
         results['test_acc@1'].append(test_acc_1)
         results['test_acc@5'].append(test_acc_5)
