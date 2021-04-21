@@ -17,13 +17,13 @@ import torch.nn.functional as F
 def train(net, data_loader, train_optimizer, mode):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
+    print(f"Training with mode {mode}")
     for pos_1, pos_2, target in train_bar:
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
         feature_1, z_i = net(pos_1)
         feature_2, z_j = net(pos_2)
 
         if mode == 'ilr':
-            print("Using ILR loss")
             batch_size = z_i.shape[0]
 
             z_i = F.normalize(z_i, dim=1)
@@ -60,7 +60,7 @@ def train(net, data_loader, train_optimizer, mode):
             criterion = torch.nn.CrossEntropyLoss()
             loss = criterion(logits, labels)
         else:
-            print("Using Repo Loss")
+
             # [2*B, D]
             out = torch.cat([z_i, z_j], dim=0)
             # [2*B, 2*B]
