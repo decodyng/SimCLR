@@ -14,7 +14,7 @@ import torch.nn.functional as F
 
 
 # train for one epoch to learn unique features
-def train(net, data_loader, train_optimizer):
+def train(net, data_loader, train_optimizer, mode):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
@@ -22,55 +22,56 @@ def train(net, data_loader, train_optimizer):
         feature_1, z_i = net(pos_1)
         feature_2, z_j = net(pos_2)
 
-        batch_size = z_i.shape[0]
+        if mode == 'ilr':
+            batch_size = z_i.shape[0]
 
-        z_i = F.normalize(z_i, dim=1)
-        z_j = F.normalize(z_j, dim=1)
+            z_i = F.normalize(z_i, dim=1)
+            z_j = F.normalize(z_j, dim=1)
 
-        mask = (torch.eye(batch_size) * 1e9).cuda()
+            mask = (torch.eye(batch_size) * 1e9).cuda()
 
-        # Similarity of the original images with all other original images in current batch. Return a matrix of NxN.
-        logits_aa = torch.matmul(z_i, z_i.T)  # NxN
+            # Similarity of the original images with all other original images in current batch. Return a matrix of NxN.
+            logits_aa = torch.matmul(z_i, z_i.T)  # NxN
 
-        # Values on the diagonal line are each image's similarity with itself
-        logits_aa = logits_aa - mask
-        # Similarity of the augmented images with all other augmented images.
-        logits_bb = torch.matmul(z_j, z_j.T)  # NxN
-        logits_bb = logits_bb - mask
-        # Similarity of original images and augmented images
-        logits_ab = torch.matmul(z_i, z_j.T)  # NxN
-        logits_ba = torch.matmul(z_j, z_i.T)  # NxN
+            # Values on the diagonal line are each image's similarity with itself
+            logits_aa = logits_aa - mask
+            # Similarity of the augmented images with all other augmented images.
+            logits_bb = torch.matmul(z_j, z_j.T)  # NxN
+            logits_bb = logits_bb - mask
+            # Similarity of original images and augmented images
+            logits_ab = torch.matmul(z_i, z_j.T)  # NxN
+            logits_ba = torch.matmul(z_j, z_i.T)  # NxN
 
-        logits_other_sim_mask = ~torch.eye(batch_size, dtype=bool, device=logits_ab.device)
+            logits_other_sim_mask = ~torch.eye(batch_size, dtype=bool, device=logits_ab.device)
 
-        # Each row now contains an image's similarity with the batch's augmented images & original images. This applies
-        # to both original and augmented images (hence "symmetric").
-        logits_i = torch.cat((logits_ab, logits_aa), 1)  # Nx2N
-        logits_j = torch.cat((logits_ba, logits_bb), 1)  # Nx2N
-        logits = torch.cat((logits_i, logits_j), axis=0)  # 2Nx2N
-        logits /= temperature
+            # Each row now contains an image's similarity with the batch's augmented images & original images. This applies
+            # to both original and augmented images (hence "symmetric").
+            logits_i = torch.cat((logits_ab, logits_aa), 1)  # Nx2N
+            logits_j = torch.cat((logits_ba, logits_bb), 1)  # Nx2N
+            logits = torch.cat((logits_i, logits_j), axis=0)  # 2Nx2N
+            logits /= temperature
 
-        # The values we want to maximize lie on the i-th index of each row i. i.e. the dot product of
-        # represent(image_i) and represent(augmented_image_i).
-        label = torch.arange(batch_size, dtype=torch.long).cuda()
-        labels = torch.cat((label, label), axis=0)
+            # The values we want to maximize lie on the i-th index of each row i. i.e. the dot product of
+            # represent(image_i) and represent(augmented_image_i).
+            label = torch.arange(batch_size, dtype=torch.long).cuda()
+            labels = torch.cat((label, label), axis=0)
 
-        criterion = torch.nn.CrossEntropyLoss()
-        loss = criterion(logits, labels)
+            criterion = torch.nn.CrossEntropyLoss()
+            loss = criterion(logits, labels)
+        else:
+            # [2*B, D]
+            out = torch.cat([z_i, z_j], dim=0)
+            # [2*B, 2*B]
+            sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+            mask = (torch.ones_like(sim_matrix) - torch.eye(2 * batch_size, device=sim_matrix.device)).bool()
+            # [2*B, 2*B-1]
+            sim_matrix = sim_matrix.masked_select(mask).view(2 * batch_size, -1)
 
-        # # [2*B, D]
-        # out = torch.cat([out_1, out_2], dim=0)
-        # # [2*B, 2*B]
-        # sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
-        # mask = (torch.ones_like(sim_matrix) - torch.eye(2 * batch_size, device=sim_matrix.device)).bool()
-        # # [2*B, 2*B-1]
-        # sim_matrix = sim_matrix.masked_select(mask).view(2 * batch_size, -1)
-        #
-        # # compute loss
-        # pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-        # # [2*B]
-        # pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
-        # loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+            # compute loss
+            pos_sim = torch.exp(torch.sum(z_i * z_j, dim=-1) / temperature)
+            # [2*B]
+            pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+            loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
 
         train_optimizer.zero_grad()
@@ -135,10 +136,11 @@ if __name__ == '__main__':
     parser.add_argument('--k', default=200, type=int, help='Top k most similar images used to predict the label')
     parser.add_argument('--batch_size', default=512, type=int, help='Number of images in each mini-batch')
     parser.add_argument('--epochs', default=500, type=int, help='Number of sweeps over the dataset to train')
+    parser.add_argument('--mode', default='ilr', type=str, help="Which loss to use")
 
     # args parse
     args = parser.parse_args()
-    feature_dim, temperature, k = args.feature_dim, args.temperature, args.k
+    feature_dim, temperature, k, mode = args.feature_dim, args.temperature, args.k, args.mode
     batch_size, epochs = args.batch_size, args.epochs
 
     # data prepare
@@ -165,7 +167,7 @@ if __name__ == '__main__':
         os.mkdir('results')
     best_acc = 0.0
     for epoch in range(1, epochs + 1):
-        train_loss = train(model, train_loader, optimizer)
+        train_loss = train(model, train_loader, optimizer, mode=mode)
         results['train_loss'].append(train_loss)
         test_acc_1, test_acc_5 = test(model, memory_loader, test_loader)
         results['test_acc@1'].append(test_acc_1)
