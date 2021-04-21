@@ -14,7 +14,7 @@ import torch.nn.functional as F
 
 
 # train for one epoch to learn unique features
-def train(net, data_loader, train_optimizer, mode):
+def train(net, data_loader, train_optimizer, mode, batch_size):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     print(f"Training with mode {mode}")
@@ -24,7 +24,6 @@ def train(net, data_loader, train_optimizer, mode):
         feature_2, z_j = net(pos_2)
 
         if mode == 'ilr':
-            batch_size = z_i.shape[0]
 
             z_i = F.normalize(z_i, dim=1)
             z_j = F.normalize(z_j, dim=1)
@@ -169,7 +168,7 @@ if __name__ == '__main__':
         os.mkdir('results')
     best_acc = 0.0
     for epoch in range(1, epochs + 1):
-        train_loss = train(model, train_loader, optimizer, mode=mode)
+        train_loss = train(model, train_loader, optimizer, mode=mode, batch_size=batch_size)
         results['train_loss'].append(train_loss)
         test_acc_1, test_acc_5 = test(model, memory_loader, test_loader)
         results['test_acc@1'].append(test_acc_1)
