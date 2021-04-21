@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import utils
 from model import Model
+import torch.nn.functional as F
 
 
 # train for one epoch to learn unique features
@@ -18,21 +19,60 @@ def train(net, data_loader, train_optimizer):
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
-        feature_1, out_1 = net(pos_1)
-        feature_2, out_2 = net(pos_2)
-        # [2*B, D]
-        out = torch.cat([out_1, out_2], dim=0)
-        # [2*B, 2*B]
-        sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
-        mask = (torch.ones_like(sim_matrix) - torch.eye(2 * batch_size, device=sim_matrix.device)).bool()
-        # [2*B, 2*B-1]
-        sim_matrix = sim_matrix.masked_select(mask).view(2 * batch_size, -1)
+        feature_1, z_i = net(pos_1)
+        feature_2, z_j = net(pos_2)
 
-        # compute loss
-        pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-        # [2*B]
-        pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
-        loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+        batch_size = z_i.shape[0]
+
+        z_i = F.normalize(z_i, dim=1)
+        z_j = F.normalize(z_j, dim=1)
+
+        mask = (torch.eye(batch_size) * 1e9).cuda()
+
+        # Similarity of the original images with all other original images in current batch. Return a matrix of NxN.
+        logits_aa = torch.matmul(z_i, z_i.T)  # NxN
+
+        # Values on the diagonal line are each image's similarity with itself
+        logits_aa = logits_aa - mask
+        # Similarity of the augmented images with all other augmented images.
+        logits_bb = torch.matmul(z_j, z_j.T)  # NxN
+        logits_bb = logits_bb - mask
+        # Similarity of original images and augmented images
+        logits_ab = torch.matmul(z_i, z_j.T)  # NxN
+        logits_ba = torch.matmul(z_j, z_i.T)  # NxN
+
+        logits_other_sim_mask = ~torch.eye(batch_size, dtype=bool, device=logits_ab.device)
+
+        # Each row now contains an image's similarity with the batch's augmented images & original images. This applies
+        # to both original and augmented images (hence "symmetric").
+        logits_i = torch.cat((logits_ab, logits_aa), 1)  # Nx2N
+        logits_j = torch.cat((logits_ba, logits_bb), 1)  # Nx2N
+        logits = torch.cat((logits_i, logits_j), axis=0)  # 2Nx2N
+        logits /= temperature
+
+        # The values we want to maximize lie on the i-th index of each row i. i.e. the dot product of
+        # represent(image_i) and represent(augmented_image_i).
+        label = torch.arange(batch_size, dtype=torch.long).cuda()
+        labels = torch.cat((label, label), axis=0)
+
+        criterion = torch.nn.CrossEntropyLoss()
+        loss = criterion(logits, labels)
+
+        # # [2*B, D]
+        # out = torch.cat([out_1, out_2], dim=0)
+        # # [2*B, 2*B]
+        # sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+        # mask = (torch.ones_like(sim_matrix) - torch.eye(2 * batch_size, device=sim_matrix.device)).bool()
+        # # [2*B, 2*B-1]
+        # sim_matrix = sim_matrix.masked_select(mask).view(2 * batch_size, -1)
+        #
+        # # compute loss
+        # pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
+        # # [2*B]
+        # pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+        # loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+
+
         train_optimizer.zero_grad()
         loss.backward()
         train_optimizer.step()
