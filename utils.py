@@ -15,8 +15,8 @@ class CIFAR10Pair(CIFAR10):
         if self.transform is not None:
             pos_1 = self.transform(img)
             pos_2 = self.transform(img)
-        save_image(img, 'results/pos1.png')
-        save_image(img, 'results/pos2.png')
+            save_image(pos_1, 'results/pos1.png')
+            save_image(pos_2, 'results/pos2.png')
         if self.target_transform is not None:
             target = self.target_transform(target)
 
