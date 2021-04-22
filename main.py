@@ -24,6 +24,7 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
         if not saved_images:
             utils.save_rgb_tensor(pos_1[0], 'results/saved_pos1.png')
             utils.save_rgb_tensor(pos_2[0], 'results/saved_pos2.png')
+            saved_images = True
         feature_1, z_i = net(pos_1)
         feature_2, z_j = net(pos_2)
 
@@ -46,7 +47,12 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
             logits_ab = torch.matmul(z_i, z_j.T)  # NxN
             logits_ba = torch.matmul(z_j, z_i.T)  # NxN
 
+            avg_self_similarity = logits_ab.diag().mean().item()
             logits_other_sim_mask = ~torch.eye(batch_size, dtype=bool, device=logits_ab.device)
+            avg_other_similarity = logits_ab.masked_select(logits_other_sim_mask).mean().item()
+
+            print(f"Avg self similarity: {avg_self_similarity}")
+            print(f"Avg other similarity: {avg_other_similarity}")
 
             # Each row now contains an image's similarity with the batch's augmented images & original images. This applies
             # to both original and augmented images (hence "symmetric").
