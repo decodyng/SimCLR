@@ -16,6 +16,7 @@ class Model(nn.Module):
                 self.f.append(module)
         # encoder
         # Temporarily add an extra layer to be closer to our model implementation
+        self.f.append(nn.Flatten(start_dim=1))
         self.f.append(nn.Linear(2048, 512, bias=False))
         self.f = nn.Sequential(*self.f)
         # projection head
@@ -23,7 +24,7 @@ class Model(nn.Module):
                                nn.ReLU(inplace=True), nn.Linear(512, feature_dim, bias=True))
 
     def forward(self, x):
-        x = self.f(x)
-        feature = torch.flatten(x, start_dim=1)
+        feature = self.f(x)
+        #feature = torch.flatten(x, start_dim=1)
         out = self.g(feature)
         return F.normalize(feature, dim=-1), F.normalize(out, dim=-1)
