@@ -1,7 +1,8 @@
 from PIL import Image
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
-
+import torch as th
+import os
 
 class CIFAR10Pair(CIFAR10):
     """CIFAR10 Dataset.
@@ -19,6 +20,21 @@ class CIFAR10Pair(CIFAR10):
             target = self.target_transform(target)
 
         return pos_1, pos_2, target
+
+def save_rgb_tensor(rgb_tensor, file_path):
+    """Save an RGB Torch tensor to a file. It is assumed that rgb_tensor is of
+    shape [3,H,W] (channels-first), and that it has values in [0,1]."""
+    assert isinstance(rgb_tensor, th.Tensor)
+    assert rgb_tensor.ndim == 3 and rgb_tensor.shape[0] == 3, rgb_tensor.shape
+    detached = rgb_tensor.detach()
+    rgb_tensor_255 = (detached.clamp(0, 1) * 255).round()
+    chans_last = rgb_tensor_255.permute((1, 2, 0))
+    np_array = chans_last.detach().byte().cpu().numpy()
+    pil_image = Image.fromarray(np_array)
+    dir_path = os.path.dirname(file_path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
+    pil_image.save(file_path)
 
 
 train_transform = transforms.Compose([

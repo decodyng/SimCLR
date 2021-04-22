@@ -18,8 +18,12 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     print(f"Training with mode {mode}")
+    saved_images = False
     for pos_1, pos_2, target in train_bar:
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
+        if not saved_images:
+            utils.save_rgb_tensor(pos_1[0], 'results/saved_pos1')
+            utils.save_rgb_tensor(pos_2[0], 'results/saved_pos2')
         feature_1, z_i = net(pos_1)
         feature_2, z_j = net(pos_2)
 
