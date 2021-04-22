@@ -18,6 +18,7 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     print(f"Training with mode {mode}")
+    batch = 0
     saved_images = False
     for pos_1, pos_2, target in train_bar:
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
@@ -51,10 +52,11 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
             logits_other_sim_mask = ~torch.eye(batch_size, dtype=bool, device=logits_ab.device)
             avg_other_similarity = logits_ab.masked_select(logits_other_sim_mask).mean().item()
 
-            print(f"Avg self similarity: {avg_self_similarity}")
-            print(f"Avg other similarity: {avg_other_similarity}")
-            print()
-            print()
+            if batch % 5 == 0:
+                print(f"Avg self similarity: {avg_self_similarity}")
+                print(f"Avg other similarity: {avg_other_similarity}")
+                print()
+                print()
 
             # Each row now contains an image's similarity with the batch's augmented images & original images. This applies
             # to both original and augmented images (hence "symmetric").
@@ -94,7 +96,7 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
         total_num += batch_size
         total_loss += loss.item() * batch_size
         train_bar.set_description('Train Epoch: [{}/{}] Loss: {:.4f}'.format(epoch, epochs, total_loss / total_num))
-
+        batch += 1
     return total_loss / total_num
 
 
