@@ -3,6 +3,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 import torch as th
 import os
+import numpy as np
 
 class CIFAR10Pair(CIFAR10):
     """CIFAR10 Dataset.
@@ -11,12 +12,13 @@ class CIFAR10Pair(CIFAR10):
     def __getitem__(self, index):
         img, target = self.data[index], self.targets[index]
         img = Image.fromarray(img)
-        save_image(img, 'results/img_pre_trans.png')
+        id_val = np.random.randint(0, 50000)
+        save_image(img, f'results/{id_val}_img_pre_trans.png')
         if self.transform is not None:
             pos_1 = self.transform(img)
             pos_2 = self.transform(img)
-            save_rgb_tensor(pos_1, 'results/pos1.png')
-            save_rgb_tensor(pos_2, 'results/pos2.png')
+            save_rgb_tensor(pos_1, f'results/{id_val}_pos1.png')
+            save_rgb_tensor(pos_2, f'results/{id_val}_pos2.png')
         if self.target_transform is not None:
             target = self.target_transform(target)
 
