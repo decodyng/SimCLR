@@ -21,6 +21,7 @@ class Model(nn.Module):
                                nn.ReLU(inplace=True), nn.Linear(512, feature_dim, bias=True))
 
     def forward(self, x):
+        breakpoint()
         x = self.f(x)
         feature = torch.flatten(x, start_dim=1)
         out = self.g(feature)
