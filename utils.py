@@ -13,9 +13,10 @@ class CIFAR10Pair(CIFAR10):
         img, target = self.data[index], self.targets[index]
         img = Image.fromarray(img)
         id_val = np.random.randint(0, 50000)
-        print(img.min())
+        print("Min")
+        print(np.min(img))
         print("Max")
-        print(img.max())
+        print(np.max(img))
         save_image(img, f'results/{id_val}_img_pre_trans.png')
         if self.transform is not None:
             pos_1 = self.transform(img)
