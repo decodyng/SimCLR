@@ -53,6 +53,8 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
 
             print(f"Avg self similarity: {avg_self_similarity}")
             print(f"Avg other similarity: {avg_other_similarity}")
+            print()
+            print()
 
             # Each row now contains an image's similarity with the batch's augmented images & original images. This applies
             # to both original and augmented images (hence "symmetric").
