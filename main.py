@@ -26,8 +26,8 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
             utils.save_rgb_tensor(pos_1[0], 'results/saved_pos1.png')
             utils.save_rgb_tensor(pos_2[0], 'results/saved_pos2.png')
             saved_images = True
-        feature_1, z_i = net(pos_1)
-        feature_2, z_j = net(pos_2)
+        feature_1, z_i = net(pos_1.uniform_(-2.5, 2.5))
+        feature_2, z_j = net(pos_2.uniform_(-2.5, 2.5))
 
         if mode == 'ilr':
 
