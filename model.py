@@ -19,8 +19,10 @@ class Model(nn.Module):
 
         self.f = nn.Sequential(*self.f)
         # projection head
-        self.g = nn.Sequential(nn.Linear(2048, 512, bias=False), nn.BatchNorm1d(512),
-                               nn.ReLU(inplace=True), nn.Linear(512, feature_dim, bias=True))
+        # self.g = nn.Sequential(nn.Linear(2048, 512, bias=False), nn.BatchNorm1d(512),
+        #                        nn.ReLU(inplace=True), nn.Linear(512, feature_dim, bias=True))
+        self.g = nn.Sequential(nn.Linear(2048, 512, bias=False), nn.ReLU(inplace=True),
+                               nn.BatchNorm1d(512), nn.Linear(512, feature_dim, bias=True))
 
     def forward(self, x):
         x = self.f(x)
