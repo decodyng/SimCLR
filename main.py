@@ -31,6 +31,9 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
 
         if mode == 'ilr':
 
+            z_i = z_i.uniform_(-.3, .3)
+            z_j = z_j.uniform_(-.3, .3)
+
             z_i = F.normalize(z_i, dim=1)
             z_j = F.normalize(z_j, dim=1)
 
