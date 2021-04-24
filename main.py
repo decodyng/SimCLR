@@ -18,6 +18,8 @@ def train(net, data_loader, train_optimizer, mode, batch_size):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     print(f"Training with mode {mode}")
+    for pname, pval in sorted(net.named_parameters()):
+        print(f'{pname}: {pval.float().mean().item():.4g} pm {pval.float().std().item():.4g}, shape {pval.shape}')
     batch = 0
     saved_images = False
     for pos_1, pos_2, target in train_bar:
